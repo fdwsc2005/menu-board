@@ -2,12 +2,31 @@
 <html>
 <head>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: black; }
-        img { width: 100vw; height: 100vh; object-fit: contain; position: absolute; top: 0; left: 0; }
+        /* This part makes sure there are no scrollbars and the background is pure black */
+        body, html { 
+            margin: 0; 
+            padding: 0; 
+            height: 100%; 
+            width: 100%;
+            overflow: hidden; 
+            background-color: #000; 
+        }
+        
+        /* This part tells the image to fill the screen perfectly */
+        img { 
+            width: 100vw; 
+            height: 100vh; 
+            /* 'contain' ensures the whole menu is visible without being cut off */
+            object-fit: contain; 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+        }
     </style>
 </head>
 <body>
     <img id="menuDisplay" src="">
+
     <script>
         const params = new URLSearchParams(window.location.search);
         const screenNumber = params.get('s') || '1';
@@ -16,14 +35,16 @@
         function updateMenu() {
             const version = new Date().getTime();
             const nextImg = new Image();
-            // This loads the image in the background first
+            
+            // Background loading so the screen doesn't flicker white
             nextImg.src = `menu${screenNumber}.png?v=${version}`;
             nextImg.onload = function() {
                 display.src = nextImg.src;
             };
         }
 
-        setInterval(updateMenu, 60000); // Check for changes every minute
+        // Check for updates every 60 seconds
+        setInterval(updateMenu, 60000);
         updateMenu(); 
     </script>
 </body>
