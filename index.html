@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: black; }
+        img { width: 100vw; height: 100vh; object-fit: contain; position: absolute; top: 0; left: 0; }
+    </style>
+</head>
+<body>
+    <img id="menuDisplay" src="">
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const screenNumber = params.get('s') || '1';
+        const display = document.getElementById('menuDisplay');
+
+        function updateMenu() {
+            const version = new Date().getTime();
+            const nextImg = new Image();
+            // This loads the image in the background first
+            nextImg.src = `menu${screenNumber}.png?v=${version}`;
+            nextImg.onload = function() {
+                display.src = nextImg.src;
+            };
+        }
+
+        setInterval(updateMenu, 60000); // Check for changes every minute
+        updateMenu(); 
+    </script>
+</body>
+</html>
