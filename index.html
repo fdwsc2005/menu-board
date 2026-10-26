@@ -1,51 +1,91 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <style>
-        /* This part makes sure there are no scrollbars and the background is pure black */
-        body, html { 
-            margin: 0; 
-            padding: 0; 
-            height: 100%; 
-            width: 100%;
-            overflow: hidden; 
-            background-color: #000; 
-        }
-        
-        /* This part tells the image to fill the screen perfectly */
-        img { 
-            width: 100vw; 
-            height: 100vh; 
-            /* 'contain' ensures the whole menu is visible without being cut off */
-            object-fit: contain; 
-            position: absolute; 
-            top: 0; 
-            left: 0; 
-        }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conte di Savoia Menu Board</title>
+<style>
+  /* Full black screen, no scrollbars, no mouse pointer */
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background: #000;
+    cursor: none;
+  }
+
+  /* Fill the screen; 'contain' keeps the whole menu visible */
+  img {
+    position: absolute;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    object-fit: contain;
+  }
+</style>
 </head>
 <body>
-    <img id="menuDisplay" src="">
+<img id="menuDisplay" alt="">
 
-    <script>
-        const params = new URLSearchParams(window.location.search);
-        const screenNumber = params.get('s') || '1';
-        const display = document.getElementById('menuDisplay');
+<script>
+  // Which screen am I? ?s=1, ?s=2 or ?s=3 (defaults to 1)
+  const params = new URLSearchParams(location.search);
+  const screenNumber = (params.get('s') || '1').replace(/[^0-9]/g, '') || '1';
+  const menuUrl = 'menu' + screenNumber + '.png';
+  const display = document.getElementById('menuDisplay');
 
-        function updateMenu() {
-            const version = new Date().getTime();
-            const nextImg = new Image();
-            
-            // Background loading so the screen doesn't flicker white
-            nextImg.src = `menu${screenNumber}.png?v=${version}`;
-            nextImg.onload = function() {
-                display.src = nextImg.src;
-            };
-        }
+  const CHECK_EVERY_MS = 60 * 1000;   // look for a new menu every minute
+  const RETRY_EVERY_MS = 15 * 1000;   // retry faster if the first load fails (e.g. Wi-Fi not up yet)
 
-        // Check for updates every 60 seconds
-        setInterval(updateMenu, 60000);
-        updateMenu(); 
-    </script>
+  let lastVersion = null;   // the image's fingerprint from GitHub (ETag)
+  let currentBlobUrl = null;
+
+  async function updateMenu() {
+    try {
+      // 'no-cache' asks GitHub "has it changed?" — if not, almost nothing is downloaded
+      const res = await fetch(menuUrl, { cache: 'no-cache' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+
+      const version = res.headers.get('etag') || res.headers.get('last-modified');
+      if (version && version === lastVersion) return true;   // same menu, nothing to do
+
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
+      // Fully decode before swapping so the screen never flickers
+      const next = new Image();
+      next.src = blobUrl;
+      await next.decode();
+
+      display.src = blobUrl;
+      if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);   // free the old image's memory
+      currentBlobUrl = blobUrl;
+      lastVersion = version;
+      return true;
+    } catch (err) {
+      // Network hiccup: keep showing the current menu and try again later
+      return false;
+    }
+  }
+
+  async function loop() {
+    const ok = await updateMenu();
+    const shownSomething = currentBlobUrl !== null;
+    setTimeout(loop, ok || shownSomething ? CHECK_EVERY_MS : RETRY_EVERY_MS);
+  }
+  loop();
+
+  // Fresh start once a night (4 am) so the browser stays healthy running 24/7.
+  // Only reloads if GitHub is reachable, so a Wi-Fi outage can't leave an error page on screen.
+  setInterval(async function () {
+    if (new Date().getHours() !== 4) return;
+    try {
+      const res = await fetch(location.href, { cache: 'no-store' });
+      if (res.ok) location.reload();
+    } catch (err) { /* offline: keep showing the current menu */ }
+  }, 60 * 60 * 1000);
+</script>
 </body>
 </html>
